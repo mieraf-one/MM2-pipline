@@ -1,0 +1,159 @@
+(DEF take-first
+    (,  (check-var $id $ptrn-id $ptrn-list $fact-list)
+        (DEF check-var $cv-p $cv-t)
+    )
+    (O
+        (pure (ptrn-head $id $ptrn-id $ptrn-head) $ptrn-head (car-atom (' $ptrn-list)))
+        (pure (ptrn-tail $id $ptrn-id $ptrn-tail) $ptrn-tail (cdr-atom (' $ptrn-list)))
+
+        (pure (fact-head $id $ptrn-id $fact-head) $fact-head (car-atom (' $fact-list)))
+        (pure (fact-tail $id $ptrn-id $fact-tail) $fact-tail (cdr-atom (' $fact-list)))
+
+        (- (check-var $id $ptrn-id $ptrn-list $fact-list))
+        (+ (exec (0 3) $cv-p $cv-t))
+    )
+)
+
+(DEF check-var
+    (,  (ptrn-head $id $fact-id $ptrn-head)
+        (ptrn-tail $id $fact-id $ptrn-tail)
+        (fact-head $id $fact-id $fact-head)
+        (fact-tail $id $fact-id $fact-tail)
+        (DEF take-first $tf-p $tf-t)
+    )
+
+    (O
+        (pure (is-var $id $fact-id $ptrn-head $fact-head $is-var) $is-var
+            (i8_to_string
+                (is_var (' $ptrn-head))
+            )
+        )
+
+        (+ (check-var $id $fact-id $ptrn-tail $fact-tail))
+        (+ (exec (0 2) $tf-p $tf-t))
+        (- (ptrn-head $id $fact-id $ptrn-head))
+        (- (ptrn-tail $id $fact-id $ptrn-tail))
+        (- (fact-head $id $fact-id $fact-head))
+        (- (fact-tail $id $fact-id $fact-tail))
+    )
+)
+
+
+
+(DEF run-valuation
+    (,  (PATTERN $id $ptrn)
+        (DEF call-take-first $p $t)
+    )
+    (O
+        (pure (indexed-pattern $id $indexed-ptrn) $indexed-ptrn
+            (vars_to_indices (' $ptrn))
+        )
+        
+        (+ (exec (0 1) $p $t))
+    )
+)
+
+
+(DEF call-take-first
+    (,  (PATTERN $id $ptrn)
+        (FACT $ptrn)
+        (indexed-pattern $id $indexed-ptrn)
+        (DEF take-first $tf-p $tf-t)
+    )
+
+    (O
+        (+ (check-var $id $ptrn $indexed-ptrn $ptrn))
+        (+ (exec (0 2) $tf-p $tf-t))
+    )
+)
+
+
+(exec (0 4)
+    (, (is-var $id $fact $ptrn-head $fact-head 1))
+    (O
+        (+ (valuation $id $ptrn-head $fact-head))
+        (- (is-var $id $fact $ptrn-head $fact-head 1))
+    )
+)
+
+(exec (0 5)
+    (, (is-var $id $fact $ptrn-head $fact-head 0))
+    (O
+        (- (is-var $id $fact $ptrn-head $fact-head 0))
+    )
+)
+
+
+; -------------------------------------------------------------
+;                  Call run-valuation     
+; -------------------------------------------------------------
+(exec (0 0)
+    (, (DEF run-valuation $p $t))
+    (O
+        (+ (exec (0 0) $p $t))
+    )
+)
+
+
+; -------------------------------------------------------------
+;                         FACTS   
+; -------------------------------------------------------------
+(FACT (Inheritance mieraf))  
+(FACT (Inheritance abebe nati))                                                
+(FACT (Inheritance biruk yonas elyas))                                                                                             
+
+
+; -------------------------------------------------------------
+;                       PATTERNS     
+; -------------------------------------------------------------
+(PATTERN p1 (Inheritance $a))
+(PATTERN p2 (Inheritance $a $b))
+(PATTERN p3 (Inheritance $a $b $c))
+
+
+; -------------------------------------------------------------
+;                  Expected outputs - for Test     
+; -------------------------------------------------------------
+(expected-val p1 (var 0) mieraf)
+
+(expected-val p2 (var 0) abebe)
+(expected-val p2 (var 1) nati)
+
+(expected-val p3 (var 0) biruk)
+(expected-val p3 (var 1) yonas)
+(expected-val p3 (var 2) elyas)
+
+
+; -------------------------------------------------------------
+;                       Testing
+; -------------------------------------------------------------
+(exec (0 8)
+    (, (valuation $id $var $val))
+    (O (+ (MISTAKE (val $id $var $val))))
+)
+
+(exec (0 8)
+    (, (expected-val $id $var $val))
+    (O (+ (MISTAKE (val $id $var $val))))
+)
+
+
+(exec (0 9)
+    (, (valuation $id $var $val)
+       (expected-val $id $var $val))
+    (O (- (MISTAKE (val $id $var $val))))
+)
+
+
+(exec (1 0)
+    (,)
+    (O (+ (TEST-PASSED)))
+)
+
+(exec (1 1)
+    (, (MISTAKE $error))
+    (O 
+        (- (TEST-PASSED))
+        (+ (TEST-FAILED $error))
+    )
+)
