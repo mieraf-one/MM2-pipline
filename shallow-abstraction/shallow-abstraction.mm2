@@ -1,0 +1,190 @@
+; change pattern to indices and call start-shallow-abstraction
+;-------------------------------
+
+(DEF run-shallow-abs
+    (,  (PATTERN $id $ptrn)
+        (DEF start-shallow-abstraction $ssa-p $ssa-t)
+    )
+
+    (O  
+        (pure (indexed-pattern $id $idx-ptrn) $idx-ptrn 
+            (vars_to_indices (' $ptrn))
+        )
+        (+ (exec (0 1) $ssa-p $ssa-t))
+    )
+)
+
+
+(DEF start-shallow-abstraction
+        (,  (indexed-pattern $id $idx-ptrn)
+            (valuation $id $var $val)
+            (DEF take-first $tf-p $tf-t)
+        )
+        (O
+            (+ (walk $id $var $val $idx-ptrn ()))
+            (+ (exec (0 1) $tf-p $tf-t))
+        )
+)
+
+
+(DEF take-first
+    (,  (walk $id $var $val $ptrn $lst)
+        (DEF step-2 $s2-p $s2-t)
+        (DEF step-3 $s3-p $s3-t)     
+    )
+    (O
+        (pure (p-head $id $var $val $p-head $lst) $p-head (car-atom (' $ptrn)))
+        (pure (p-tail $id $var $val $p-tail $lst) $p-tail (cdr-atom (' $ptrn)))
+
+        (- (walk $id $var $val $ptrn $lst))
+        
+        (+ (exec (0 3) $s2-p $s2-t))
+        (+ (exec (0 4) $s3-p $s3-t))
+    )
+)
+
+(DEF step-2
+    (,  (p-head $id $var $val $var $lst)
+        (p-tail $id $var $val $p-tail $lst)
+        (DEF take-first $tf-p $tf-t)
+        (DEF final-out $fo-p $fo-t)
+    )
+    (O
+        (pure (walk $id $var $val $p-tail $new-lst) $new-lst (cons (' ($val $lst))))
+
+        (+ (exec (0 3) $fo-p $fo-t))
+        (+ (exec (0 4) $tf-p $tf-t))
+
+        (- (p-head $id $var $val $var $lst))
+        (- (p-tail $id $var $val $p-tail $lst))
+    )
+)
+
+
+(DEF step-3
+    (,  (p-head $id $var $val $p-head $lst)
+        (p-tail $id $var $val $p-tail $lst)
+        (DEF take-first $tf-p $tf-t)
+        (DEF final-out $fo-p $fo-t)
+    )
+    (O
+        (pure (walk $id $var $val $p-tail $new-lst) $new-lst (cons (' ($p-head $lst))))
+        
+        (+ (exec (0 3) $fo-p $fo-t))
+        (+ (exec (0 4) $tf-p $tf-t))
+
+        (- (p-head $id $var $val $p-head $lst))
+        (- (p-tail $id $var $val $p-tail $lst))
+    )
+)
+
+
+(DEF final-out
+    (,  (walk $id $var $val () $lst)
+    )
+    (O  
+        (pure (specialization $id $new-lst) $new-lst (reverse (' $lst)))
+        (- (walk $id $var $val () $lst))
+    )
+)
+
+
+; -----------------------------------------------
+;                   Cleaning
+; -----------------------------------------------
+(exec 0
+    (,  (DEF take-first $tf-p $tf-t)
+        (DEF step-2 $s2-p $s2-t)
+        (DEF step-3 $s3-p $s3-t)
+        (DEF final-out $fo-p $fo-t)
+    )
+    (O
+        (- (DEF take-first $tf-p $tf-t))
+        (- (DEF step-2 $s2-p $s2-t))
+        (- (DEF step-3 $s3-p $s3-t))
+        (- (DEF final-out $fo-p $fo-t))
+    )
+)
+
+
+
+
+
+; -----------------------------------------------
+;                   Testing
+; -----------------------------------------------
+
+
+; pattern
+;------------------------------
+(PATTERN p1 (Inheritance $a $b))
+
+
+; valuations
+;------------------------------
+(valuation p1 (var 0) mieraf)
+(valuation p1 (var 1) dave)
+
+(valuation p1 (var 0) nati)
+(valuation p1 (var 1) ela)
+
+
+; expected-outputs
+;------------------------------
+(expected-val p1 (Inheritance mieraf (var 1)))
+(expected-val p1 (Inheritance (var 0) dave))
+(expected-val p1 (Inheritance nati (var 1)))
+(expected-val p1 (Inheritance (var 0) ela))
+
+
+; run shallow abstraction
+;------------------------------
+(exec (0 0)
+    (, (DEF run-shallow-abs $rsa-p $rsa-t))
+    (O
+        (+ (exec (0 0) $rsa-p $rsa-t))
+    )
+)
+
+
+; test
+; ----------------------------
+
+(exec (0 5)
+    (, (specialization $id $spec))
+    (O
+        (+ (MISTAKE (val $id $spec)))
+    )
+)
+
+(exec (0 5)
+    (, (expected-val $id $spec))
+    (O
+        (+ (MISTAKE (val $id $spec)))
+    )
+)
+
+(exec (0 6)
+    (,  (specialization $id $spec)
+        (expected-val $id $spec)
+    )
+    (O
+        (- (MISTAKE (val $id $spec)))
+    )
+)
+
+(exec (0 7)
+    (,)
+    (O
+        (+ (TEST-PASSED))
+    )
+)
+
+(exec (0 8)
+    (,  (MISTAKE $error)
+    )
+    (O
+        (- (TEST-PASSED))
+        (+ (TEST-FAILED $error))
+    )
+)
