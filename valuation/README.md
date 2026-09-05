@@ -1,4 +1,4 @@
-# MM2 Valuation Pipeline
+# MM2 Valuation
 
 A pattern mining valuation extractor built in MM2 — extracts variable bindings from patterns matched against a knowledge base.
 

@@ -85,8 +85,8 @@ which slot is being targeted.
 (Inheritance $a)                       ; 1 variable
 (Inheritance $a $b)                    ; 2 variables
 (Inheritance $a $b $c)                 ; 3 variables
-(Flight $from $to $airline $plane)     ; 4 variables
-(DataRecord $x0 ... $x9)               ; 10+ variables
+(Inheritance $a $b $c $d)              ; 4 variables
+(Inheritance $a ... $z)               ; 10+ variables
 ```
 
 **Any target variable slot:**
