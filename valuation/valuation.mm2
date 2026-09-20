@@ -1,5 +1,5 @@
 (DEF take-first
-    (,  (check-var $id $ptrn-id $ptrn-list $fact-list)
+    (, (check-var $id $ptrn-id $ptrn-list $fact-list)
         (DEF check-var $cv-p $cv-t)
     )
     (O
@@ -15,7 +15,7 @@
 )
 
 (DEF check-var
-    (,  (ptrn-head $id $fact-id $ptrn-head)
+    (, (ptrn-head $id $fact-id $ptrn-head)
         (ptrn-tail $id $fact-id $ptrn-tail)
         (fact-head $id $fact-id $fact-head)
         (fact-tail $id $fact-id $fact-tail)
@@ -39,23 +39,22 @@
 )
 
 
-
 (DEF run-valuation
-    (,  (PATTERN $id $ptrn)
+    (, (PATTERN $id $ptrn)
         (DEF call-take-first $p $t)
     )
     (O
         (pure (indexed-pattern $id $indexed-ptrn) $indexed-ptrn
             (vars_to_indices (' $ptrn))
         )
-        
+
         (+ (exec (0 1) $p $t))
     )
 )
 
 
 (DEF call-take-first
-    (,  (PATTERN $id $ptrn)
+    (, (PATTERN $id $ptrn)
         (FACT $ptrn)
         (indexed-pattern $id $indexed-ptrn)
         (DEF take-first $tf-p $tf-t)
@@ -85,7 +84,7 @@
 
 
 ; -------------------------------------------------------------
-;                  Call run-valuation     
+;                  Call run-valuation
 ; -------------------------------------------------------------
 (exec (0 0)
     (, (DEF run-valuation $p $t))
@@ -96,15 +95,15 @@
 
 
 ; -------------------------------------------------------------
-;                         FACTS   
+;                         FACTS
 ; -------------------------------------------------------------
-(FACT (Inheritance mieraf))  
-(FACT (Inheritance abebe nati))                                                
-(FACT (Inheritance biruk yonas elyas))                                                                                             
+(FACT (Inheritance mieraf))
+(FACT (Inheritance abebe nati))
+(FACT (Inheritance biruk yonas elyas))
 
 
 ; -------------------------------------------------------------
-;                       PATTERNS     
+;                       PATTERNS
 ; -------------------------------------------------------------
 (PATTERN p1 (Inheritance $a))
 (PATTERN p2 (Inheritance $a $b))
@@ -112,7 +111,7 @@
 
 
 ; -------------------------------------------------------------
-;                  Expected outputs - for Test     
+;                  Expected outputs - for Test
 ; -------------------------------------------------------------
 (expected-val p1 (var 0) mieraf)
 
@@ -129,30 +128,34 @@
 ; -------------------------------------------------------------
 (exec (0 8)
     (, (valuation $id $var $val))
-    (O (+ (MISTAKE (val $id $var $val))))
+    (O
+        (+ (MISTAKE (val $id $var $val))))
 )
 
 (exec (0 8)
     (, (expected-val $id $var $val))
-    (O (+ (MISTAKE (val $id $var $val))))
+    (O
+        (+ (MISTAKE (val $id $var $val))))
 )
 
 
 (exec (0 9)
     (, (valuation $id $var $val)
-       (expected-val $id $var $val))
-    (O (- (MISTAKE (val $id $var $val))))
+        (expected-val $id $var $val))
+    (O
+        (- (MISTAKE (val $id $var $val))))
 )
 
 
 (exec (1 0)
     (,)
-    (O (+ (TEST-PASSED)))
+    (O
+        (+ (TEST-PASSED)))
 )
 
 (exec (1 1)
     (, (MISTAKE $error))
-    (O 
+    (O
         (- (TEST-PASSED))
         (+ (TEST-FAILED $error))
     )

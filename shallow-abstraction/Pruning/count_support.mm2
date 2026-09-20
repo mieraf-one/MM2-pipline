@@ -1,0 +1,121 @@
+(DEF run-check-support
+    (, (specialization $id $spec)
+        (exec (0 1) $p $t))
+    (O
+        (pure (spec $id $spec $ptrn) $ptrn
+            (indices_to_vars (' $spec))
+        )
+
+        (+ (exec (0 1) $p $t))
+    )
+)
+
+
+(exec (0 1)
+    (, (spec $id $spec $ptrn)
+        (FACT $id $ptrn))
+    (O
+        (count (spec support $id $spec $count) $count $ptrn)
+    )
+)
+
+
+(exec (0 3)
+    (, (spec support $id $spec $sup)
+        (min-support $min-sup))
+    (O
+        (pure (spec is-over $id $spec $sup $is-over) $is-over
+            (ge_i32
+                (i32_from_string $sup)
+                (i32_from_string $min-sup)
+            )
+        )
+    )
+)
+
+
+(exec (0 4)
+    (, (spec is-over $id $spec $sup true))
+    (O
+        (+ (candidate-pattern $id $spec))
+    )
+)
+; ==============================================
+;             Run support check
+; ==============================================
+
+; FACTS
+; -----------------------------------
+(FACT p1 (Inheritance mieraf human))
+(FACT p1 (Inheritance mieraf developer))
+(FACT p1 (Inheritance nati student))
+(FACT p1 (Inheritance nati athlete))
+(FACT p1 (Inheritance dave musician))
+
+; Speciliations
+; -----------------------------------
+(specialization p1 (Inheritance mieraf (var 1)))
+(specialization p1 (Inheritance dave (var 1)))
+(specialization p1 (Inheritance nati (var 1)))
+(specialization p1 (Inheritance (var 0) ela))
+
+
+; Minium Support
+; -----------------------------------
+(min-support 2)
+
+
+; =============================================
+;               Run check support
+; ==============================================
+(exec (0 0)
+    (, (DEF run-check-support $rcs-p $rcs-t))
+    (O
+        (+ (exec (0 0) $rcs-p $rcs-t))
+    )
+)
+
+
+; TESTING
+; ------------------------------
+(expected-val p1 (Inheritance nati (var 1)))
+(expected-val p1 (Inheritance mieraf (var 1)))
+
+
+(exec (0 5)
+    (, (expected-val $id $idx-ptrn))
+    (O
+        (+ (MISTAKE ($id $idx-ptrn)))
+    )
+)
+
+(exec (0 6)
+    (, (candidate-pattern $id $idx-ptrn))
+    (O
+        (+ (MISTAKE ($id $idx-ptrn)))
+    )
+)
+
+(exec (0 8)
+    (, (expected-val $id $idx-ptrn)
+        (candidate-pattern $id $idx-ptrn)
+    )
+    (O
+        (- (MISTAKE ($id $idx-ptrn)))
+    )
+)
+
+(exec (0 9)
+    (,)
+    (O
+        (+ (TEST-PASSED))
+    )
+)
+
+(exec (1 0)
+    (, (MISTAKE $val))
+    (O
+        (- (TEST-PASSED))
+        (+ (TEST-FAILED $val))
+    )
+)
