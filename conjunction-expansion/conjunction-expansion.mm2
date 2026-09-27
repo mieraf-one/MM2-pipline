@@ -1,0 +1,150 @@
+; change both index patterns to vars
+(DEF run-conj-exp
+    (, (candidate-pattern $id1 $spec1)
+        (candidate-pattern $id2 $spec2)
+        (valid-pair $id1 $id2)
+        (exec (0 1) $p $t)
+    )
+    (O
+        (pure (ptrn $id1 $spec1 $ptrn1) $ptrn1
+            (indices_to_vars (' $spec1))
+        )
+
+        (pure (ptrn $id2 $spec2 $ptrn2) $ptrn2
+            (indices_to_vars (' $spec2))
+        )
+
+        (+ (exec (0 1) $p $t))
+    )
+)
+
+; make the two candidate patterns together by shared variable with the rule of valid pair
+(exec (0 1)
+    (, (candidate-pattern $id1 $spec1)
+        (candidate-pattern $id2 $spec2)
+        (valid-pair $id1 $id2))
+    (O
+
+        (pure (conj-shared ($id1 $id2)
+                ($spec1 $spec2) $live-conj) $live-conj
+            (indices_to_vars ('($spec1 $spec2)))
+        )
+    )
+)
+
+
+; make the two candidate patterns together by distinct variable with the rule of valid pair
+(exec (0 2)
+    (, (ptrn $id1 $spec1 $ptrn1)
+        (ptrn $id2 $spec2 $ptrn2)
+        (valid-pair $id1 $id2))
+    (O
+        (pure (conj-distinct ($id1 $id2) $distinct-spec ($ptrn1 $ptrn2)) $distinct-spec
+            (vars_to_indices ('($ptrn1 $ptrn2)))
+        )
+
+    )
+)
+
+
+; count shared conjunction pattern support
+(exec (0 3)
+    (, (conj-shared $ids $idx-vars ($ptrn1 $ptrn2))
+        (FACT $ptrn1) (FACT $ptrn2))
+    (O
+        (count (conj-shared $ids support $idx-vars $count) $count ($ptrn1 $ptrn2))
+    )
+)
+
+; count distinct conjunction pattern support
+(exec (0 4)
+    (, (conj-distinct $ids $idx-vars ($ptrn1 $ptrn2))
+        (FACT $ptrn1) (FACT $ptrn2))
+    (O
+        (count (conj-distinct $ids support $idx-vars $count) $count ($ptrn1 $ptrn2))
+    )
+)
+
+; validate minimum support of shared conjunction pattern
+(exec (0 5)
+    (, (conj-shared $ids support $idx-vars $support)
+        (min-support $min-sup))
+    (O
+        (pure (conj-shared is-valid-support $ids $idx-vars $support $is-valid) $is-valid
+            (ge_i32 (i32_from_string $support) (i32_from_string $min-sup))
+        )
+    )
+)
+
+; validate minimum support of distinct conjunction pattern
+(exec (0 6)
+    (, (conj-distinct $ids support $idx-vars $support)
+        (min-support $min-sup))
+    (O
+        (pure (conj-distinct is-valid-support $ids $idx-vars $support $is-valid) $is-valid
+            (ge_i32 (i32_from_string $support) (i32_from_string $min-sup))
+        )
+    )
+)
+
+; purne shared-patterns less than min support
+(exec (0 7)
+    (, (conj-shared is-valid-support $ids $idx-vars $support true))
+    (O
+        (+ (frequent-shared-pattern $ids $idx-vars))
+    )
+)
+
+; purne distinct-patterns less than min support
+(exec (0 8)
+    (, (conj-distinct is-valid-support $ids $idx-vars $support true))
+    (O
+        (+ (frequent-distinct-pattern $ids $idx-vars))
+    )
+)
+
+
+; ==============================================
+;                   TESTING
+; ==============================================
+(candidate-pattern p1 (Inheritance (var 0) developer))
+(candidate-pattern p2 (Likes (var 0) coffee))
+(candidate-pattern p3 (WorksAt (var 0) icog))
+
+
+; Valid pair
+; ----------------------------------
+(valid-pair p1 p2)
+(valid-pair p1 p3)
+(valid-pair p2 p3)
+
+
+; FACTS
+; ----------------------------------
+(FACT (Inheritance mieraf developer))
+(FACT (Likes mieraf coffee))
+(FACT (WorksAt mieraf icog))
+
+
+(FACT (Inheritance nati developer))
+(FACT (Likes nati tea))
+(FACT (WorksAt nati icog))
+
+
+(FACT (Inheritance dave musician))
+(FACT (Likes dave coffee))
+
+
+; mininum support
+; ----------------------------------
+(min-support 2)
+
+
+; ENTRY POINT
+; ----------------------------------
+(exec (0 0)
+    (, (DEF run-conj-exp $rce-p $rce-t))
+    (O
+        (+ (exec (0 0) $rce-p $rce-t))
+    )
+)
