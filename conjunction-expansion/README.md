@@ -63,3 +63,12 @@ Stages `(0 5)` and `(0 6)` evaluate candidate support against `(min-support $min
         (+ (exec (0 0) $rce-p $rce-t))
     )
 )
+```
+
+Expected Output
+```clojure
+
+(frequent-shared-pattern (p1 p3) ((Inheritance (var 0) developer) (WorksAt (var 0) icog)))
+(frequent-distinct-pattern (p1 p2) ((Inheritance (var 0) developer) (Likes (var 1) coffee)))
+(frequent-distinct-pattern (p1 p3) ((Inheritance (var 0) developer) (WorksAt (var 1) icog)))
+(frequent-distinct-pattern (p2 p3) ((Likes (var 0) coffee) (WorksAt (var 1) icog)))
