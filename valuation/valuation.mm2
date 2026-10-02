@@ -1,162 +1,146 @@
-(DEF take-first
-    (, (check-var $id $ptrn-id $ptrn-list $fact-list)
-        (DEF check-var $cv-p $cv-t)
-    )
-    (O
-        (pure (ptrn-head $id $ptrn-id $ptrn-head) $ptrn-head (car-atom (' $ptrn-list)))
-        (pure (ptrn-tail $id $ptrn-id $ptrn-tail) $ptrn-tail (cdr-atom (' $ptrn-list)))
-
-        (pure (fact-head $id $ptrn-id $fact-head) $fact-head (car-atom (' $fact-list)))
-        (pure (fact-tail $id $ptrn-id $fact-tail) $fact-tail (cdr-atom (' $fact-list)))
-
-        (- (check-var $id $ptrn-id $ptrn-list $fact-list))
-        (+ (exec (0 3) $cv-p $cv-t))
-    )
-)
-
-(DEF check-var
-    (, (ptrn-head $id $fact-id $ptrn-head)
-        (ptrn-tail $id $fact-id $ptrn-tail)
-        (fact-head $id $fact-id $fact-head)
-        (fact-tail $id $fact-id $fact-tail)
-        (DEF take-first $tf-p $tf-t)
-    )
-
-    (O
-        (pure (is-var $id $fact-id $ptrn-head $fact-head $is-var) $is-var
-            (i8_to_string
-                (is_var (' $ptrn-head))
-            )
-        )
-
-        (+ (check-var $id $fact-id $ptrn-tail $fact-tail))
-        (+ (exec (0 2) $tf-p $tf-t))
-        (- (ptrn-head $id $fact-id $ptrn-head))
-        (- (ptrn-tail $id $fact-id $ptrn-tail))
-        (- (fact-head $id $fact-id $fact-head))
-        (- (fact-tail $id $fact-id $fact-tail))
-    )
-)
-
-
 (DEF run-valuation
-    (, (PATTERN $id $ptrn)
-        (DEF call-take-first $p $t)
-    )
+    (, (PATTERN $id $ptrn))
     (O
-        (pure (indexed-pattern $id $indexed-ptrn) $indexed-ptrn
+        (pure (INDEXED-PATTERN $id $idx-ptrn) $idx-ptrn
             (vars_to_indices (' $ptrn))
         )
-
-        (+ (exec (0 1) $p $t))
     )
 )
 
 
-(DEF call-take-first
+(exec (0 1)
     (, (PATTERN $id $ptrn)
         (FACT $ptrn)
-        (indexed-pattern $id $indexed-ptrn)
+        (INDEXED-PATTERN $id $idx-ptrn)
         (DEF take-first $tf-p $tf-t)
     )
-
     (O
-        (+ (check-var $id $ptrn $indexed-ptrn $ptrn))
+        (+ (WALK $id $ptrn $idx-ptrn))
         (+ (exec (0 2) $tf-p $tf-t))
     )
 )
 
 
-(exec (0 4)
-    (, (is-var $id $fact $ptrn-head $fact-head 1))
+; @doc take-first
+; Peels the head and tail from both the pattern and fact lists simultaneously.
+; take: (WALK $id $ptrn $idx-ptrn)
+; put: P-HEAD, P-TAIL, F-HEAD, F-TAIL
+(DEF take-first
+    (, (WALK $id $ptrn $idx-ptrn)
+        (DEF check-head $ch-p $ch-t))
     (O
-        (+ (valuation $id $ptrn-head $fact-head))
-        (- (is-var $id $fact $ptrn-head $fact-head 1))
+        (pure (P-HEAD $id $ptrn $idx-ptrn $ph) $ph (car-atom (' $idx-ptrn)))
+        (pure (P-TAIL $id $ptrn $idx-ptrn $pt) $pt (cdr-atom (' $idx-ptrn)))
+
+        (pure (F-HEAD $id $ptrn $idx-ptrn $fh) $fh (car-atom (' $ptrn)))
+        (pure (F-TAIL $id $ptrn $idx-ptrn $ft) $ft (cdr-atom (' $ptrn)))
+
+        (- (WALK $id $ptrn $idx-ptrn))
+        (+ (exec (0 3) $ch-p $ch-t))
     )
 )
+
+;
+(DEF check-head
+    (, (P-HEAD $id $ptrn $idx-ptrn $ph)
+        (P-TAIL $id $ptrn $idx-ptrn $pt)
+        (F-HEAD $id $ptrn $idx-ptrn $fh)
+        (F-TAIL $id $ptrn $idx-ptrn $ft)
+        (DEF nested-ptrn $np-p $np-t)
+        (DEF create-walk $cw-p $cw-t))
+    (O
+        ; Check whether the p-head is an expression
+        (pure (IS-EXP $id $ph $pt $fh $ft $is-exp) $is-exp
+            (i8_to_string (is_exp (' $ph))))
+
+        ; Check whether the p-head is a var
+        (pure (IS-VAR $id $ph $fh $is-var) $is-var
+            (i8_to_string (is_var (' $ph))))
+
+        (- (P-HEAD $id $ptrn $idx-ptrn $ph))
+        (- (P-TAIL $id $ptrn $idx-ptrn $pt))
+        (- (F-HEAD $id $ptrn $idx-ptrn $fh))
+        (- (F-TAIL $id $ptrn $idx-ptrn $ft))
+
+        ; Call nested and create-walk
+        (+ (exec (0 4) $np-p $np-t))
+        (+ (exec (0 4) $cw-p $cw-t))
+    )
+)
+
+
+(DEF nested-ptrn
+    (, (IS-EXP $id $ph $pt $fh $ft 1)
+        (DEF take-first $tf-p $tf-t)
+    )
+
+    (O
+        ; Create walk for nested fact
+        (+ (WALK $id $fh $ph))
+
+        ; Create walk for normal fact
+        (+ (WALK $id $ft $pt))
+
+        (- (IS-EXP $id $ph $pt $fh $ft 1))
+
+        ; call take-first - loop
+        (+ (exec (0 2) $tf-p $tf-t))
+
+    )
+)
+
+
+(DEF create-walk
+    (, (IS-EXP $id $ph $pt $fh $ft 0)
+        (DEF take-first $tf-p $tf-t)
+    )
+    (O
+        (+ (WALK $id $ft $pt))
+
+        ; call take-first
+        (+ (exec (0 2) $tf-p $tf-t))
+        (- (IS-EXP $id $ph $pt $fh $ft 0))
+    )
+)
+
+
+; final output
+(exec (0 5)
+    (, (IS-VAR $id $ph $fh 1))
+    (O
+        (+ (valuation $id $ph $fh))
+        (- (IS-VAR $id $ph $fh 1))
+    )
+)
+
 
 (exec (0 5)
-    (, (is-var $id $fact $ptrn-head $fact-head 0))
+    (, (IS-VAR $id $ph $fh 0))
     (O
-        (- (is-var $id $fact $ptrn-head $fact-head 0))
+        (- (IS-VAR $id $ph $fh 0))
     )
 )
 
+; clear def after finished executing
+;
+; (exec 1
+;     (, (DEF take-first $tf-p $tf-t)
+;         (DEF check-head $ch-p $ch-t)
+;         (DEF nested-ptrn $np-p $np-t)
+;         (DEF create-walk $cw-p $cw-t)
+;     )
+;     (O
+;         (- (DEF take-first $tf-p $tf-t))
+;         (- (DEF check-head $ch-p $ch-t))
+;         (- (DEF nested-ptrn $np-p $np-t))
+;         (- (DEF create-walk $cw-p $cw-t))
+;     )
+; )
 
-; -------------------------------------------------------------
-;                  Call run-valuation
-; -------------------------------------------------------------
+
 (exec (0 0)
-    (, (DEF run-valuation $p $t))
+    (, (DEF run-valuation $rv-p $rv-t))
     (O
-        (+ (exec (0 0) $p $t))
-    )
-)
-
-
-; -------------------------------------------------------------
-;                         FACTS
-; -------------------------------------------------------------
-(FACT (Inheritance mieraf))
-(FACT (Inheritance abebe nati))
-(FACT (Inheritance biruk yonas elyas))
-
-
-; -------------------------------------------------------------
-;                       PATTERNS
-; -------------------------------------------------------------
-(PATTERN p1 (Inheritance $a))
-(PATTERN p2 (Inheritance $a $b))
-(PATTERN p3 (Inheritance $a $b $c))
-
-
-; -------------------------------------------------------------
-;                  Expected outputs - for Test
-; -------------------------------------------------------------
-(expected-val p1 (var 0) mieraf)
-
-(expected-val p2 (var 0) abebe)
-(expected-val p2 (var 1) nati)
-
-(expected-val p3 (var 0) biruk)
-(expected-val p3 (var 1) yonas)
-(expected-val p3 (var 2) elyas)
-
-
-; -------------------------------------------------------------
-;                       Testing
-; -------------------------------------------------------------
-(exec (0 8)
-    (, (valuation $id $var $val))
-    (O
-        (+ (MISTAKE (val $id $var $val))))
-)
-
-(exec (0 8)
-    (, (expected-val $id $var $val))
-    (O
-        (+ (MISTAKE (val $id $var $val))))
-)
-
-
-(exec (0 9)
-    (, (valuation $id $var $val)
-        (expected-val $id $var $val))
-    (O
-        (- (MISTAKE (val $id $var $val))))
-)
-
-
-(exec (1 0)
-    (,)
-    (O
-        (+ (TEST-PASSED)))
-)
-
-(exec (1 1)
-    (, (MISTAKE $error))
-    (O
-        (- (TEST-PASSED))
-        (+ (TEST-FAILED $error))
+        (+ (exec (0 0) $rv-p $rv-t))
     )
 )
