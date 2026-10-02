@@ -21,7 +21,6 @@
 )
 
 
-; @doc take-first
 ; Peels the head and tail from both the pattern and fact lists simultaneously.
 ; take: (WALK $id $ptrn $idx-ptrn)
 ; put: P-HEAD, P-TAIL, F-HEAD, F-TAIL
