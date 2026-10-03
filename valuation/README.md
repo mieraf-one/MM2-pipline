@@ -37,7 +37,15 @@ This pipeline extracts valuations from **any pattern structure** — regardless 
     )
 )
 ```
+### Input format
+```clojure
+(FACT (Inheritance Mieraf Tadesse))
+(PATTERN p1 (Inheritance $child $father))  ; p1 represents an ID
 
+; Expected output
+(valuation p1 (var 0) Mieraf)
+(valuation p1 (var 1) Tadesse)
+```
 ### How to run
 ```
 ../target/release/mork run test-valuation.metta --aux-path valution.metta
