@@ -1,0 +1,311 @@
+; Step 1: Check if root pattern has enough support to continue
+(exec (freq f020 check-root-spec)
+  (, (valuation $id $ptrn)
+     (DEF match-root-fact $match-root-fact-p $mrf-t)
+     (DEF check-root-threshold $check-root-threshold-p $crt-t)
+     (DEF emit-root-candidate $emit-root-candidate-p $erc-t)
+  )
+  (O
+     (+ (exec (freq f030 mrf) $match-root-fact-p $mrf-t))
+     (+ (exec (freq f050 crt) $check-root-threshold-p $crt-t))
+     (+ (exec (freq f060 erc) $emit-root-candidate-p $erc-t))
+  )     
+)
+
+; 1. Count how many facts match the root pattern directly
+(DEF match-root-fact
+    (, (valuation $id $ptrn)
+       (FACT $ptrn))
+    (O
+        (count (root-support $id $count) $count $ptrn)
+    )
+)
+
+; 2. Check if support meets min-support and make indexed pattern
+(DEF check-root-threshold
+    (, (valuation $id $ptrn)
+       (root-support $id $sup)
+       (INPUT MIN-SUPPORT $min-sup))
+    (O
+        (pure (root-is-over $id $sup $is-over) $is-over
+            (ge_i32 (i32_from_string $sup) (i32_from_string $min-sup))
+        )
+        (pure (root-idx $id $idx) $idx (vars_to_indices (' $ptrn)))
+        (- (root-support $id $sup))
+    )
+)
+
+; 3a. Root pattern passes: save it as candidate and unlock round 1
+(DEF emit-root-candidate
+    (, (root-is-over $id $sup true)
+       (root-idx $id $idx))
+    (O
+        (+ (candidate-pattern $id $idx $sup))
+        (+ (INDEXED-PATTERN $id $idx))
+        (- (root-is-over $id $sup true))
+        (- (root-idx $id $idx))
+    )
+)
+
+; 3b. Root pattern fails: clean up and stop here so specialization will not run
+(DEF emit-root-candidate
+    (, (root-is-over $id $sup false)
+       (root-idx $id $idx))
+    (O
+        (- (root-is-over $id $sup false))
+        (- (root-idx $id $idx))
+    )
+)
+
+
+; Step 2: Start specialization when we have variable bindings
+(exec (freq f400 start-spec)
+  (, (shallow-abstraction-binding $id $pos $var $val)
+     (DEF var-check $var-check-p $vc-t)
+  )
+  (O
+     (+ (exec (freq f410 run-var-check) $var-check-p $vc-t))
+  )
+)
+
+; Filter bindings: pick values for variables in the pattern and skip variables bound to variables
+(DEF var-check
+    (, (INDEXED-PATTERN $id $idx-ptrn)
+       (shallow-abstraction-binding $id $pos $var $val)
+    )
+    (O  
+        (pure (var-in-ptrn $id $var $val $idx-ptrn $is-in) $is-in
+            (is-member (' $var) (indexed_vars_in_expr (' $idx-ptrn)))
+        )
+        (pure (val-is-var $id $var $val $idx-ptrn $is-var) $is-var
+            (i8_to_string (is_var (' $val)))
+        )
+        (+ (exec (freq f420 subst-filter)
+             (, (var-in-ptrn $id $var $val $idx-ptrn true)
+                (val-is-var $id $var $val $idx-ptrn 0)
+                (DEF take-first-sa $take-first-sa-p $tf-t)
+             )
+             (O
+                (+ (walk $id $idx-ptrn $var $val $idx-ptrn () ()))
+                (- (var-in-ptrn $id $var $val $idx-ptrn true))
+                (- (val-is-var $id $var $val $idx-ptrn 0))
+                (+ (exec (freq f430 start-walk) $take-first-sa-p $tf-t))
+             )
+        ))
+        (+ (exec (freq f499 clean-round-pattern)
+             (, (INDEXED-PATTERN $id $idx-ptrn))
+             (O (- (INDEXED-PATTERN $id $idx-ptrn)))
+        ))
+    )
+)
+
+; Step 3: Tree walker that can go to any nested depth using a stack
+(DEF take-first-sa
+    (, (walk $id $orig-ptrn $var $val $ptrn $lst $stack)
+       (DEF step-var $step-var-p $sv-t)
+       (DEF step-atom $step-atom-p $sa-t)
+       (DEF step-descend $step-descend-p $sd-t)
+    )
+    (O
+        (pure (p-head $id $orig-ptrn $var $val $p-head $lst $stack) $p-head (car-atom (' $ptrn)))
+        (pure (p-tail $id $orig-ptrn $var $val $p-tail $lst $stack) $p-tail (cdr-atom (' $ptrn)))
+        (pure (p-has-var $id $orig-ptrn $var $val $lst $stack $has) $has
+            (is-member (' $var) (indexed_vars_in_expr (car-atom (' $ptrn))))
+        )
+        (pure (p-is-var $id $orig-ptrn $var $val $lst $stack $is-var) $is-var
+            (i8_to_string (is_var (car-atom (' $ptrn))))
+        )
+        (- (walk $id $orig-ptrn $var $val $ptrn $lst $stack))
+        (+ (exec (freq f440 sv) $step-var-p $sv-t))
+        (+ (exec (freq f441 sa) $step-atom-p $sa-t))
+        (+ (exec (freq f442 sd) $step-descend-p $sd-t))
+    )
+)
+
+; Case 1: First item is our variable: replace it with the new value
+(DEF step-var
+    (, (p-head $id $orig-ptrn $var $val $var $lst $stack)
+       (p-tail $id $orig-ptrn $var $val $p-tail $lst $stack)
+       (p-has-var $id $orig-ptrn $var $val $lst $stack true)
+       (p-is-var $id $orig-ptrn $var $val $lst $stack 1)
+       (DEF take-first-sa $take-first-sa-p $tf-t)
+       (DEF pop-level $pop-level-p $pl-t)
+       (DEF final-out $final-out-p $fo-t)
+    )
+    (O
+        (pure (walk $id $orig-ptrn $var $val $p-tail $new-lst $stack) $new-lst (cons ('($val $lst))))
+        (+ (exec (freq f450 fo) $final-out-p $fo-t))
+        (+ (exec (freq f450 pl) $pop-level-p $pl-t))
+        (+ (exec (freq f451 tf) $take-first-sa-p $tf-t))
+        (- (p-head $id $orig-ptrn $var $val $var $lst $stack))
+        (- (p-tail $id $orig-ptrn $var $val $p-tail $lst $stack))
+        (- (p-has-var $id $orig-ptrn $var $val $lst $stack true))
+        (- (p-is-var $id $orig-ptrn $var $val $lst $stack 1))
+    )
+)
+
+; Case 2: First item does not have our variable: keep it as it is
+(DEF step-atom
+    (, (p-head $id $orig-ptrn $var $val $p-head $lst $stack)
+       (p-tail $id $orig-ptrn $var $val $p-tail $lst $stack)
+       (p-has-var $id $orig-ptrn $var $val $lst $stack false)
+       (p-is-var $id $orig-ptrn $var $val $lst $stack $v)
+       (DEF take-first-sa $take-first-sa-p $tf-t)
+       (DEF pop-level $pop-level-p $pl-t)
+       (DEF final-out $final-out-p $fo-t)
+    )
+    (O
+        (pure (walk $id $orig-ptrn $var $val $p-tail $new-lst $stack) $new-lst (cons ('($p-head $lst))))
+        (+ (exec (freq f450 fo) $final-out-p $fo-t))
+        (+ (exec (freq f450 pl) $pop-level-p $pl-t))
+        (+ (exec (freq f451 tf) $take-first-sa-p $tf-t))
+        (- (p-head $id $orig-ptrn $var $val $p-head $lst $stack))
+        (- (p-tail $id $orig-ptrn $var $val $p-tail $lst $stack))
+        (- (p-has-var $id $orig-ptrn $var $val $lst $stack false))
+        (- (p-is-var $id $orig-ptrn $var $val $lst $stack $v))
+    )
+)
+
+; Case 3: First item has our variable nested inside: save where we are on stack and go inside
+(DEF step-descend
+    (, (p-head $id $orig-ptrn $var $val $p-head $lst $stack)
+       (p-tail $id $orig-ptrn $var $val $p-tail $lst $stack)
+       (p-has-var $id $orig-ptrn $var $val $lst $stack true)
+       (p-is-var $id $orig-ptrn $var $val $lst $stack 0)
+       (DEF take-first-sa $take-first-sa-p $tf-t)
+    )
+    (O
+       (+ (walk $id $orig-ptrn $var $val $p-head () (($p-tail $lst) $stack)))
+       (+ (exec (freq f451 tf) $take-first-sa-p $tf-t))
+       (- (p-head $id $orig-ptrn $var $val $p-head $lst $stack))
+       (- (p-tail $id $orig-ptrn $var $val $p-tail $lst $stack))
+       (- (p-has-var $id $orig-ptrn $var $val $lst $stack true))
+       (- (p-is-var $id $orig-ptrn $var $val $lst $stack 0))
+    )
+)
+
+; Pop level: Finished nested part: pop saved position from stack and continue parent pattern
+(DEF pop-level
+    (, (walk $id $orig-ptrn $var $val () $sub-lst (($p-tail $parent-lst) $rest-stack))
+       (DEF take-first-sa $take-first-sa-p $tf-t)
+       (DEF pop-level $pop-level-p $pl-t)
+       (DEF final-out $final-out-p $fo-t)
+    )
+    (O
+       (pure (sub-expr $id $orig-ptrn $var $val $sub $p-tail $parent-lst $rest-stack) $sub
+           (reverse (' $sub-lst)))
+       (- (walk $id $orig-ptrn $var $val () $sub-lst (($p-tail $parent-lst) $rest-stack)))
+       (+ (exec (freq f455 push-sub)
+            (, (sub-expr $id $orig-ptrn $var $val $sub-val $pt $pl $st))
+            (O (pure (walk $id $orig-ptrn $var $val $pt $next-lst $st) $next-lst
+                 (cons (' ($sub-val $pl))))
+               (- (sub-expr $id $orig-ptrn $var $val $sub-val $pt $pl $st))
+               (+ (exec (freq f450 fo) $final-out-p $fo-t))
+               (+ (exec (freq f450 pl) $pop-level-p $pl-t))
+               (+ (exec (freq f451 tf) $take-first-sa-p $tf-t))
+            )
+       ))
+    )
+)
+
+; Finished the whole pattern: reverse the list and check support
+(DEF final-out
+    (, (walk $id $orig-ptrn $var $val () $lst ())
+       (DEF run-check-support $run-check-support-p $rcs-t)
+    )
+    (O
+        (pure (specialization $id $new-lst) $new-lst (reverse (' $lst)))
+        (- (walk $id $orig-ptrn $var $val () $lst ()))
+        (+ (exec (freq f600 check-sup) $run-check-support-p $rcs-t))
+    )
+)
+
+; Step 4: Count support for the new pattern using database facts
+(DEF run-check-support
+    (, (specialization $id $spec)
+        (DEF match-fact $match-fact-p $mf-t)
+        (DEF clean-spec $clean-spec-p $cs-t)
+        (DEF check-threshold $check-threshold-p $ct-t)
+        (DEF finalize-spec $finalize-spec-p $fs-t)
+    )
+    (O
+        (pure (spec $id $spec $ptrn) $ptrn
+            (indices_to_vars (' $spec))
+        )
+        (+ (exec (freq f610 mf) $match-fact-p $mf-t))
+        (+ (exec (freq f620 cs) $clean-spec-p $cs-t))
+        (+ (exec (freq f630 ct) $check-threshold-p $ct-t))
+        (+ (exec (freq f640 fs) $finalize-spec-p $fs-t))
+        (- (specialization $id $spec))
+    )
+)
+
+; Count how many facts match the new pattern directly
+(DEF match-fact
+    (, (spec $id $spec $ptrn)
+       (FACT $ptrn))
+    (O
+        (count (spec support $id $spec $count) $count $ptrn)
+    )
+)
+
+; Delete temporary pattern after matching
+(DEF clean-spec
+    (, (spec $id $spec $ptrn))
+    (O
+        (- (spec $id $spec $ptrn))
+    )
+)
+
+; Check if support meets min-support and see if more variables are left
+(DEF check-threshold
+    (, (spec support $id $spec $sup)
+       (INPUT MIN-SUPPORT $min-sup))
+    (O
+        (pure (spec is-over $id $spec $sup $is-over) $is-over
+            (ge_i32 (i32_from_string $sup) (i32_from_string $min-sup))
+        )
+        (pure (spec can-specialize $id $spec $can-spec) $can-spec
+            (gt_i32 (i32_from_string (length (indexed_vars_in_expr (' $spec)))) (i32_from_string 1))
+        )
+        (- (spec support $id $spec $sup))
+    )
+)
+
+; Step 5: Save good patterns or prune bad ones
+
+; Case 1: Pattern passes and has more variables: save candidate and go to next round
+(DEF finalize-spec
+    (, (spec is-over $id $spec $sup true)
+       (spec can-specialize $id $spec true)
+       (DEF var-check $var-check-p $vc-t)
+    )
+    (O
+        (+ (candidate-pattern $id $spec $sup))
+        (+ (INDEXED-PATTERN $id $spec))
+        (- (spec is-over $id $spec $sup true))
+        (- (spec can-specialize $id $spec true))
+        (+ (exec (freq f410 next-round) $var-check-p $vc-t))
+    )
+)
+
+; Case 2: Pattern passes and no more variables: save final candidate pattern
+(DEF finalize-spec
+    (, (spec is-over $id $spec $sup true)
+       (spec can-specialize $id $spec false))
+    (O
+        (+ (candidate-pattern $id $spec $sup))
+        (- (spec is-over $id $spec $sup true))
+        (- (spec can-specialize $id $spec false))
+    )
+)
+
+; Case 3: Support is too low: prune and delete it immediately
+(DEF finalize-spec
+    (, (spec is-over $id $spec $sup false)
+       (spec can-specialize $id $spec $any))
+    (O
+        (- (spec is-over $id $spec $sup false))
+        (- (spec can-specialize $id $spec $any))
+    )
+)
