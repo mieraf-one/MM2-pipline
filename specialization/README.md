@@ -12,7 +12,7 @@
 Inside `specialization` folder:
 
 ```bash
-mork run specialization.mm2 --aux-path test/icog-val-sha-abs.mm2 --aux-path test/2arg-100-facts.mm2 output.mm2
+mork run specialization.metta --aux-path test/icog-val-sha-abs.metta --aux-path test/2arg-100-facts.metta output.metta
 ```
 
 * `specialization.mm2`: The specialization code.
