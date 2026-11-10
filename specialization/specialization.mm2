@@ -35,15 +35,17 @@
     )
 )
 
-; 3a. Root pattern passes: save it as candidate and unlock round 1
+; 3a. Root pattern passes: save candidate and trigger round 1 specialization
 (DEF emit-root-candidate
     (, (root-is-over $id $sup true)
-       (root-idx $id $idx))
+       (root-idx $id $idx)
+       (DEF var-check $var-check-p $vc-t))
     (O
         (+ (candidate-pattern $id $idx $sup))
         (+ (INDEXED-PATTERN $id $idx))
         (- (root-is-over $id $sup true))
         (- (root-idx $id $idx))
+        (+ (exec (freq f410 run-var-check) $var-check-p $vc-t))
     )
 )
 
@@ -55,17 +57,6 @@
         (- (root-is-over $id $sup false))
         (- (root-idx $id $idx))
     )
-)
-
-
-; Step 2: Start specialization when we have variable bindings
-(exec (freq f400 start-spec)
-  (, (shallow-abstraction-binding $id $pos $var $val)
-     (DEF var-check $var-check-p $vc-t)
-  )
-  (O
-     (+ (exec (freq f410 run-var-check) $var-check-p $vc-t))
-  )
 )
 
 ; Filter bindings: pick values for variables in the pattern and skip variables bound to variables
