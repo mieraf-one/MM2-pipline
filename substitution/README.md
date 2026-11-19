@@ -18,6 +18,39 @@ A pattern substitution written in MM2.
 
 ---
 
+## Format
+
+### Input Format
+Each substitution task is defined as:
+```metta
+(SUBSTITUTE <id> <pattern> <values>)
+```
+- `<id>`: Unique name or identifier (e.g. `p1`, `p2`).
+- `<pattern>`: Expression containing variables (e.g. `(Inheritance $a $b)`).
+- `<values>`: List of values to plug into the variables (e.g. `(nati bob)`).
+
+**Example:**
+```metta
+(SUBSTITUTE p1 (Inheritance $a $b) (nati bob))
+```
+
+### Output Format
+The engine produces the substituted result as:
+```metta
+(SUBSTITUTED <id> <result>)
+```
+- `<id>`: The matching identifier from the input.
+- `<result>`: The pattern with its variables replaced by the values.
+
+**Example:**
+```metta
+(SUBSTITUTED p1 (Inheritance nati bob))
+```
+
+*(The original `(SUBSTITUTE ...)` input fact is also kept in the output).*
+
+---
+
 ## Files
 
 - **`subs.metta`**: The substitution rules.
