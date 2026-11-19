@@ -31,7 +31,7 @@ A pattern substitution written in MM2.
 
 ### From the main folder
 ```bash
-mork run subs.metta --aux-path test/test.metta test/output.mm2
+mork run subs.metta --aux-path test/test.metta test/output.metta
 ```
 
 ### Check the Results
